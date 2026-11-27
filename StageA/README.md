@@ -161,7 +161,7 @@ WHERE dl.request_id IN (
 )
 ORDER BY dispense_year DESC, dispense_month DESC;
 ```
-![הרצה ותוצאה שאילתה 1ב](/stageB/screenshots/q1_b.png)
+![הרצה ותוצאה שאילתה 1ב](/StageB/screenshots/q1_b.png)
 
 **השוואת יעילות:**
 צורה א' (`JOIN` ישיר) יעילה וקריאה יותר, שכן טבלת `blood_requests` כבר מחוברת לשאילתה והסינון מתבצע ישירות עליה. בצורה ב' מתבצעת גישה נוספת (תת-שאילתה) לאותה טבלה (`blood_requests`) לצורך סינון ה-`IN`, מה שמוסיף תקורה מיותרת לתוכנית הביצוע.
@@ -188,7 +188,7 @@ WHERE EXISTS (
 )
 ORDER BY last_year DESC, last_month DESC;
 ```
-![הרצה ותוצאה שאילתה 2א](/stageB/screenshots/q2_a.png)
+![הרצה ותוצאה שאילתה 2א](/StageB/screenshots/q2_a.png)
 
 **צורה ב' – שימוש ב-`DISTINCT` ו-`JOIN`:**
 ```sql
@@ -203,7 +203,7 @@ JOIN blood_inventory bi ON d.donor_id = bi.donor_id
 JOIN dispense_log dl ON bi.unit_id = dl.unit_id
 ORDER BY last_year DESC, last_month DESC;
 ```
-![הרצה ותוצאה שאילתה 2ב](/stageB/screenshots/q2_b.png)
+![הרצה ותוצאה שאילתה 2ב](/StageB/screenshots/q2_b.png)
 
 **השוואת יעילות:**
 צורה א' (`EXISTS`) יעילה יותר מכיוון שהיא פועלת בשיטת *Semi-Join* ועוצרת מיד ברגע שנמצאת מנה אחת שנופקה עבור התורם. לעומת זאת, צורה ב' (`JOIN` + `DISTINCT`) מכפילה תחילה את כל שורות התורם כמספר המנות שתרם ונופקו, ורק לאחר מכן מבצעת פעולת `HashAggregate` / `Sort` יקרה כדי להסיר את הכפילויות.
@@ -229,7 +229,7 @@ LEFT JOIN dispense_log dl ON br.request_id = dl.request_id
 WHERE dl.dispense_id IS NULL
 ORDER BY br.requested_date ASC;
 ```
-![הרצה ותוצאה שאילתה 3א](/stageB/screenshots/q3_a.png)
+![הרצה ותוצאה שאילתה 3א](/StageB/screenshots/q3_a.png)
 
 **צורה ב' – שימוש ב-`NOT EXISTS`:**
 ```sql
@@ -250,7 +250,7 @@ WHERE NOT EXISTS (
 )
 ORDER BY br.requested_date ASC;
 ```
-![הרצה ותוצאה שאילתה 3ב](/stageB/screenshots/q3_b.png)
+![הרצה ותוצאה שאילתה 3ב](/StageB/screenshots/q3_b.png)
 
 **השוואת יעילות:**
 צורה ב' (`NOT EXISTS`) נחשבת יעילה ומדויקת יותר למציאת חוסר התאמה (*Anti-Join*), מכיוון שהמנוע מפסיק לסרוק עבור בקשה מסוימת ברגע שנמצא ניפוק אחד עבורה. בצורה א' (`LEFT JOIN`), המנוע נדרש לצרף את השורות ורק בשלב ה-`WHERE` לסנן את ערכי ה-`NULL` (אף שבאופטימייזר של PostgreSQL שתי הצורות עשויות לקבל תוכנית דומה).
@@ -278,7 +278,7 @@ WHERE bi.status = 'Available'
   )
 ORDER BY bi.hemoglobin DESC;
 ```
-![הרצה ותוצאה שאילתה 4א](/stageB/screenshots/q4_a.png)
+![הרצה ותוצאה שאילתה 4א](/StageB/screenshots/q4_a.png)
 
 **צורה ב' – `JOIN` לטבלה נגזרת עם `GROUP BY`:**
 ```sql
@@ -299,7 +299,7 @@ WHERE bi.status = 'Available'
   AND bi.hemoglobin > avg_tbl.avg_hb
 ORDER BY bi.hemoglobin DESC;
 ```
-![הרצה ותוצאה שאילתה 4ב](/stageB/screenshots/q4_b.png)
+![הרצה ותוצאה שאילתה 4ב](/StageB/screenshots/q4_b.png)
 
 **השוואת יעילות:**
 צורה ב' (`JOIN` עם `GROUP BY`) יעילה משמעותית, מכיוון שהיא מחשבת את ממוצע ההמוגלובין לכל סוג רכיב **פעם אחת בלבד** ולאחר מכן מצרפת את התוצאה לטבלת המלאי. בצורה א' (תת-שאילתה מתואמת), חישוב הממוצע עלול להתבצע מחדש עבור כל שורה בטבלת המלאי, מה שמאט מאוד את הריצה בטבלאות גדולות.
@@ -323,7 +323,7 @@ WHERE bi.status = 'Available'
 GROUP BY d.blood_type, d.rh_factor, bi.component_type
 ORDER BY available_units ASC;
 ```
-![הרצה ותוצאה שאילתה 5](/stageB/screenshots/q5.png)
+![הרצה ותוצאה שאילתה 5](/StageB/screenshots/q5.png)
 
 #### שאילתה 6: התראות תפוגה – מנות זמינות שפגות תוקף בתוך 7 ימים
 השאילתה מציגה את כלל המנות הזמינות שתוקפן יפוג בשבוע הקרוב ומחשבת כמה ימים נותרו לכל מנה, כדי לתעדף אותן לניפוק לפני השמדה.
@@ -341,7 +341,7 @@ WHERE bi.status = 'Available'
   AND bi.expiration_date BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '7 days'
 ORDER BY days_left ASC;
 ```
-![הרצה ותוצאה שאילתה 6](/stageB/screenshots/q6.png)
+![הרצה ותוצאה שאילתה 6](/StageB/screenshots/q6.png)
 
 #### שאילתה 7: עומס עבודה חודשי של צוות בנק הדם
 השאילתה מחשבת את כמות הניפוקים שביצע כל איש צוות בכל חודש ושנה, ומציגה רק עובדים שביצעו 5 ניפוקים ומעלה באותו חודש.
@@ -359,7 +359,7 @@ GROUP BY s.staff_id, s.first_name, s.last_name, s.role_title, year, month
 HAVING COUNT(dl.dispense_id) >= 5
 ORDER BY year DESC, month DESC, total_dispenses DESC;
 ```
-![הרצה ותוצאה שאילתה 7](/stageB/screenshots/q7.png)
+![הרצה ותוצאה שאילתה 7](/StageB/screenshots/q7.png)
 
 #### שאילתה 8: דירוג מחלקות לפי צריכת דם וכמות בקשות דחופות
 השאילתה מדרגת את מחלקות בית החולים לפי סך מנות הדם שהזמינו, כולל ספירת סך הבקשות וכמות הבקשות הדחופות (`Stat`) של כל מחלקה.
@@ -375,7 +375,7 @@ JOIN blood_requests br ON w.ward_id = br.ward_id
 GROUP BY w.ward_id, w.ward_name
 ORDER BY total_units_requested DESC;
 ```
-![הרצה ותוצאה שאילתה 8](/stageB/screenshots/q8.png)
+![הרצה ותוצאה שאילתה 8](/StageB/screenshots/q8.png)
 
 ---
 
@@ -395,9 +395,9 @@ WHERE status = 'Available'
   );
 ```
 **לפני העדכון:**
-![לפני עדכון 1](stageB/screenshots/u1_before.png)
+![לפני עדכון 1](StageB/screenshots/u1_before.png)
 **הרצה ואחרי העדכון:**
-![אחרי עדכון 1](stageB/screenshots/u1_after.png)
+![אחרי עדכון 1](StageB/screenshots/u1_after.png)
 
 #### עדכון 2: סנכרון תאריך התרומה האחרונה של תורמים (`last_donation_date`)
 השאילתה מעדכנת בטבלת התורמים את תאריך התרומה האחרונה לפי התאריך העדכני ביותר של אותו תורם בטבלת `blood_inventory`, לצורך בקרת זכאות לתרומה הבאה.
@@ -413,9 +413,9 @@ WHERE d.donor_id = sub.donor_id
   AND (d.last_donation_date IS NULL OR d.last_donation_date < sub.max_date);
 ```
 **לפני העדכון:**
-![לפני עדכון 2](stageB/screenshots/u2_before.png)
+![לפני עדכון 2](StageB/screenshots/u2_before.png)
 **הרצה ואחרי העדכון:**
-![אחרי עדכון 2](stageB/screenshots/u2_after.png)
+![אחרי עדכון 2](StageB/screenshots/u2_after.png)
 
 #### עדכון 3: העלאת דחיפות בקשות `Urgent` שמתעכבות ל-`Stat`
 השאילתה מעלה לדרגת `Stat` בקשות בדרגת `Urgent` שממתינות לניפוק יותר מ-3 ימים ועדיין לא טופלו (אינן מופיעות ב-`dispense_log`).
@@ -431,9 +431,9 @@ WHERE urgency_level = 'Urgent'
   );
 ```
 **לפני העדכון:**
-![לפני עדכון 3](stageB/screenshots/u3_before.png)
+![לפני עדכון 3](StageB/screenshots/u3_before.png)
 **הרצה ואחרי העדכון:**
-![אחרי עדכון 3](stageB/screenshots/u3_after.png)
+![אחרי עדכון 3](StageB/screenshots/u3_after.png)
 
 ---
 
@@ -452,9 +452,9 @@ WHERE urgency_level = 'Routine'
   );
 ```
 **לפני המחיקה:**
-![לפני מחיקה 1](stageB/screenshots/d1_before.png)
+![לפני מחיקה 1](StageB/screenshots/d1_before.png)
 **הרצה ואחרי המחיקה:**
-![אחרי מחיקה 1](stageB/screenshots/d1_after.png)
+![אחרי מחיקה 1](StageB/screenshots/d1_after.png)
 
 #### מחיקה 2: פינוי מנות פגות תוקף (`Expired`) ישנות מהמלאי הפעיל
 השאילתה מוחקת מטבלת המלאי מנות בסטטוס `Expired` שתאריך התפוגה שלהן עבר לפני יותר מחצי שנה ולא נופקו מעולם.
@@ -469,9 +469,9 @@ WHERE status = 'Expired'
   );
 ```
 **לפני המחיקה:**
-![לפני מחיקה 2](stageB/screenshots/d2_before.png)
+![לפני מחיקה 2](StageB/screenshots/d2_before.png)
 **הרצה ואחרי המחיקה:**
-![אחרי מחיקה 2](stageB/screenshots/d2_after.png)
+![אחרי מחיקה 2](StageB/screenshots/d2_after.png)
 
 #### מחיקה 3: ניקוי בקשות חירום (`Stat` / `Emergency`) ישנות שנתקעו בתור
 השאילתה מוחקת בקשות חירום שלא טופלו מעל 3 ימים (ולכן אינן רלוונטיות עוד או בוטלו), כדי לשמור על תור התראות נקי ומדויק במסך הניפוק.
@@ -484,6 +484,6 @@ WHERE br.urgency_level IN ('Stat', 'Emergency')
   );
 ```
 **לפני המחיקה:**
-![לפני מחיקה 3](stageB/screenshots/d3_before.png)
+![לפני מחיקה 3](StageB/screenshots/d3_before.png)
 **הרצה ואחרי המחיקה:**
-![אחרי מחיקה 3](stageB/screenshots/d3_after.png)
+![אחרי מחיקה 3](StageB/screenshots/d3_after.png)
