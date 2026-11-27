@@ -192,3 +192,127 @@ FROM wards w
 JOIN blood_requests br ON w.ward_id = br.ward_id
 GROUP BY w.ward_id, w.ward_name
 ORDER BY total_units_requested DESC;
+
+-- Update 1: Automatically mark un-dispensed available blood units past their expiration date as 'Expired'.
+
+-- select the not-available blood units
+SELECT unit_id, component_type, expiration_date, status
+FROM blood_inventory
+WHERE status = 'Available'
+  AND expiration_date < CURRENT_DATE
+  AND NOT EXISTS (SELECT 1 FROM dispense_log dl WHERE dl.unit_id = blood_inventory.unit_id)
+LIMIT 5;
+
+-- update status to expired
+UPDATE blood_inventory
+SET status = 'Expired'
+WHERE status = 'Available'
+  AND expiration_date < CURRENT_DATE
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dispense_log dl
+      WHERE dl.unit_id = blood_inventory.unit_id
+  );
+
+-- Update 2: Synchronize each donor's last_donation_date with their most recent collection_date in blood_inventory.
+
+-- select the donor's last_donation_date
+SELECT d.donor_id, d.first_name, d.last_name, d.last_donation_date, sub.max_date
+FROM donor d
+JOIN (
+    SELECT donor_id, MAX(collection_date) AS max_date
+    FROM blood_inventory
+    GROUP BY donor_id
+) sub ON d.donor_id = sub.donor_id
+WHERE d.last_donation_date IS NULL OR d.last_donation_date < sub.max_date
+LIMIT 5;
+
+-- update 
+UPDATE donor d
+SET last_donation_date = sub.max_date
+FROM (
+    SELECT donor_id, MAX(collection_date) AS max_date
+    FROM blood_inventory
+    GROUP BY donor_id
+) sub
+WHERE d.donor_id = sub.donor_id
+  AND (d.last_donation_date IS NULL OR d.last_donation_date < sub.max_date);
+
+-- Update 3: Escalate pending 'Urgent' blood requests older than 3 days to 'Stat' priority.
+
+-- select all blood requests that older than 3 days.
+SELECT request_id, patient_name, urgency_level, requested_date
+FROM blood_requests
+WHERE urgency_level = 'Urgent'
+  AND requested_date < CURRENT_DATE - INTERVAL '3 days'
+  AND NOT EXISTS (SELECT 1 FROM dispense_log dl WHERE dl.request_id = blood_requests.request_id)
+LIMIT 5;
+
+-- update their priority
+UPDATE blood_requests
+SET urgency_level = 'Stat'
+WHERE urgency_level = 'Urgent'
+  AND requested_date < CURRENT_DATE - INTERVAL '3 days'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dispense_log dl
+      WHERE dl.request_id = blood_requests.request_id
+  );
+
+-- Delete 1: Remove unfulfilled 'Routine' blood requests that are over one year old.
+
+-- select
+SELECT request_id, patient_name, urgency_level, requested_date
+FROM blood_requests
+WHERE urgency_level = 'Routine'
+  AND requested_date < CURRENT_DATE - INTERVAL '1 year'
+  AND NOT EXISTS (SELECT 1 FROM dispense_log dl WHERE dl.request_id = blood_requests.request_id);
+
+-- delete
+DELETE FROM blood_requests
+WHERE urgency_level = 'Routine'
+  AND requested_date < CURRENT_DATE - INTERVAL '1 year'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dispense_log dl
+      WHERE dl.request_id = blood_requests.request_id
+  );
+
+-- Delete 2: Purge un-dispensed 'Expired' blood units whose expiration date passed more than 6 months ago.
+
+-- select
+SELECT COUNT(*) AS expired_to_delete
+FROM blood_inventory
+WHERE status = 'Expired'
+  AND expiration_date < CURRENT_DATE - INTERVAL '6 months'
+  AND NOT EXISTS (SELECT 1 FROM dispense_log dl WHERE dl.unit_id = blood_inventory.unit_id);
+
+-- delete
+DELETE FROM blood_inventory
+WHERE status = 'Expired'
+  AND expiration_date < CURRENT_DATE - INTERVAL '6 months'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM dispense_log dl
+      WHERE dl.unit_id = blood_inventory.unit_id
+  );
+
+-- Delete 3: Remove stale unfulfilled 'Stat' or 'Emergency' requests older than 3 days to keep the urgent queue clean.
+
+-- select
+SELECT br.request_id, w.ward_name, br.patient_name, br.urgency_level, br.requested_date
+FROM blood_requests br
+JOIN wards w ON br.ward_id = w.ward_id
+WHERE br.urgency_level IN ('Stat', 'Emergency')
+  AND br.requested_date < CURRENT_DATE - INTERVAL '3 days'
+  AND NOT EXISTS (
+      SELECT 1 FROM dispense_log dl WHERE dl.request_id = br.request_id
+  );
+
+-- delete
+DELETE FROM blood_requests br
+WHERE br.urgency_level IN ('Stat', 'Emergency')
+  AND br.requested_date < CURRENT_DATE - INTERVAL '3 days'
+  AND NOT EXISTS (
+      SELECT 1 FROM dispense_log dl WHERE dl.request_id = br.request_id
+  );
